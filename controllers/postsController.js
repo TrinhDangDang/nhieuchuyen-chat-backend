@@ -1,115 +1,110 @@
-const Post = require('../models/Post')
-const User = require('../models/User')
+const Post = require('../models/Post');
+const User = require('../models/User');
 
 // @description Get all posts 
 // @route GET /posts
 // @access Private
 const getAllPosts = async (req, res) => {
-    // Get all posts from MongoDB
-    const posts = await Post.find().lean() //lean() ensures that the returned documents are plain JavaScript objects, not Mongoose models
+    const posts = await Post.find().lean();
 
-    // If no posts 
     if (!posts?.length) {
-        return res.status(400).json({ message: 'No posts found' })
+        return res.status(400).json({ message: 'No posts found' });
     }
 
     const postsWithUser = await Promise.all(posts.map(async (post) => {
-        const user = await User.findById(post.user).lean().exec()
-        return { ...post, username: user.username }
-    }))
+        const user = await User.findById(post.user).lean().exec();
+        return { ...post, username: user.username };
+    }));
 
-    res.json(postsWithUser)
-}
+    res.json(postsWithUser);
+};
 
-
+// @desc Create new post
+// @route POST /posts
+// @access Private
 const createNewPost = async (req, res) => {
-    const { user, title, text } = req.body
+    const { user, title, text } = req.body;
 
-    // Confirm data
     if (!user || !title || !text) {
-        return res.status(400).json({ message: 'All fields are required' })
+        return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Check for duplicate title
-    const duplicate = await Post.findOne({ title }).collation({ locale: 'en', strength: 2 }).lean().exec()
+    const post = await Post.create({ user, title, text });
 
-    if (duplicate) {
-        return res.status(409).json({ message: 'Duplicate post title' })
-    }
-
-    // Create and store the new user 
-    const post = await Post.create({ user, title, text })
-
-    if (post) { // Created 
-        return res.status(201).json({ message: 'New post created' })
+    if (post) {
+        return res.status(201).json({ message: 'New post created' });
     } else {
-        return res.status(400).json({ message: 'Invalid post data received' })
+        return res.status(400).json({ message: 'Invalid post data received' });
     }
-
-}
+};
 
 // @desc Update a post
 // @route PATCH /posts
 // @access Private
 const updatePost = async (req, res) => {
-    const { id, user, title, text } = req.body
+    const { id, title, text } = req.body;
 
-    // Confirm data
     if (!id || !title || !text) {
-        return res.status(400).json({ message: 'All fields are required' })
+        return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Confirm post exists to update
-    const post = await Post.findById(id).exec()
+    const post = await Post.findById(id).exec();
 
     if (!post) {
-        return res.status(400).json({ message: 'Post not found' })
+        return res.status(400).json({ message: 'Post not found' });
     }
 
-    // Check for duplicate title
-    const duplicate = await Post.findOne({ title }).collation({ locale: 'en', strength: 2 }).lean().exec()
+    // Authorization: Only allow owner or admin to update
+    const isAdmin = req.user.roles.includes('Admin');
+    const isOwner = post.user.toString() === req.user.userId;
 
-    // Allow renaming of the original post 
-    if (duplicate && duplicate?._id.toString() !== id) {
-        return res.status(409).json({ message: 'Duplicate post title' })
+    if (!isAdmin && !isOwner) {
+        return res.status(403).json({ message: 'Forbidden' });
     }
 
-    post.title = title
-    post.text = text
+    // Update fields (Allow duplicate titles by removing the title check)
+    post.title = title;
+    post.text = text;
 
-    const updatedPost = await post.save()
+    const updatedPost = await post.save();
 
-    res.json(`'${updatedPost.title}' updated`)
-}
+    res.json({ message: `'${updatedPost.title}' updated` });
+};
 
 // @desc Delete a post
 // @route DELETE /posts
 // @access Private
 const deletePost = async (req, res) => {
-    const { id } = req.body
+    const { id } = req.body;
 
-    // Confirm data
     if (!id) {
-        return res.status(400).json({ message: 'Post ID required' })
+        return res.status(400).json({ message: 'Post ID required' });
     }
 
-    // Confirm post exists to delete 
-    const post = await Post.findById(id).exec()
+    const post = await Post.findById(id).exec();
 
     if (!post) {
-        return res.status(400).json({ message: 'Post not found' })
+        return res.status(400).json({ message: 'Post not found' });
     }
 
-    const result = await post.deleteOne()
+    // Authorization: Only allow owner or admin to delete
+    const isAdmin = req.user.roles.includes('Admin');
+    const isOwner = post.user.toString() === req.user.userId;
 
-    const reply = `Post '${result.title}' with ID ${result._id} deleted`
+    if (!isAdmin && !isOwner) {
+        return res.status(403).json({ message: 'Forbidden' });
+    }
 
-    res.json(reply)
-}
+    const result = await post.deleteOne();
+
+    const reply = `Post '${result.title}' with ID ${result._id} deleted`;
+
+    res.json(reply);
+};
 
 module.exports = {
     getAllPosts,
     createNewPost,
     updatePost,
     deletePost
-}
+};
