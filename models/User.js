@@ -6,6 +6,11 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: true
         },
+
+        fullname: {
+            type: String,
+            required: true,
+        },
         password: {
             type: String,
             required: true
@@ -18,6 +23,10 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default:true
         },
+        profilePic: {
+            type: String,
+            default: "",
+        }
     },
     {
         timestamps: true

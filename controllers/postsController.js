@@ -15,7 +15,6 @@ const getAllPosts = async (req, res) => {
         const user = await User.findById(post.user).lean().exec();
         return { ...post, username: user.username };
     }));
-
     res.json(postsWithUser);
 };
 

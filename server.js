@@ -1,7 +1,6 @@
 require('dotenv').config()
 require('express-async-errors')
 const express = require('express')
-const app = express()
 const path = require('path')
 const { logger, logEvents } = require('./middleware/logger')
 const errorHandler = require('./middleware/errorHandler')
@@ -11,6 +10,7 @@ const corsOptions = require('./config/corsOptions')
 const connectDB = require('./config/dbConn')
 const mongoose = require('mongoose')
 const PORT = process.env.PORT || 3500
+const {app, server} = require('./socket/socket.io')
 
 console.log(process.env.NODE_ENV)
 
@@ -20,7 +20,7 @@ app.use(logger)
 
 app.use(cors(corsOptions))
 
-app.use(express.json())
+app.use(express.json()) //built in middleware, to parse the incoming requests with JSON payloads (from req.body)
 
 app.use(cookieParser())
 
@@ -28,10 +28,10 @@ app.use('/', express.static(path.join(__dirname, 'public')))
 
 app.use('/', require('./routes/root'))
 app.use('/register', require('./routes/registerRoute'))
-app.use('/auth', require('./routes/authRoutes'))
+app.use('/auth', require('./routes/authRoutes')) //these files are middleware
 app.use('/users', require('./routes/userRoutes'))
 app.use('/posts', require('./routes/postRoutes'))
-
+app.use('/message', require('./routes/messageRoutes'))
 
 app.all('*', (req, res) => {
     res.status(404)
@@ -48,7 +48,7 @@ app.use(errorHandler)
 
 mongoose.connection.once('open', () => {
     console.log('Connected to MongoDB')
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`))
 })
 
 mongoose.connection.on('error', err => {

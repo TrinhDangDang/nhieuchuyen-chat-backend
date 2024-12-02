@@ -22,10 +22,10 @@ const getAllUsers = asyncHandler(async (req, res) => {
 // @route POST /users
 // @access Private
 const createNewUser = asyncHandler(async (req, res) => {
-    const { username, password, roles } = req.body
+    const { fullname, username, password, roles } = req.body
 
     // Confirm data
-    if (!username || !password || !Array.isArray(roles) || !roles.length) {
+    if (!fullname || !username || !password || !Array.isArray(roles) || !roles.length) {
         return res.status(400).json({ message: 'All fields are required' })
     }
 
@@ -33,13 +33,14 @@ const createNewUser = asyncHandler(async (req, res) => {
     const duplicate = await User.findOne({ username }).lean().exec()
 
     if (duplicate) {
-        return res.status(409).json({ message: 'Duplicate username' })
+        return res.status(409).json({ message: 'Username already exists' })
     }
 
     // Hash password 
     const hashedPwd = await bcrypt.hash(password, 10) // salt rounds
 
-    const userObject = { username, "password": hashedPwd, roles }
+    const profilePic = `https://api.dicebear.com/9.x/big-smile/svg?seed=${username}`
+    const userObject = { fullname, username, "password": hashedPwd, roles, profilePic }
 
     // Create and store new user 
     const user = await User.create(userObject)
@@ -115,9 +116,15 @@ const deleteUser = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'User not found' })
     }
 
-    const result = await user.deleteOne()
+    //currently can only delete the user once all posts associated with that user are deleted
+    // const deletePostsResult = await Post.deleteMany({ user: id }).exec();
+    //uncomment above to automatically delete all the posts associated the user
 
-    const reply = `Username ${user.username} with ID ${user._id} deleted`
+    const result = await user.deleteOne()
+    
+    // Associated posts deleted: ${deletePostsResult.deletedCount}
+
+    const reply = `Username ${user.username} with ID ${user._id} deleted. `
 
     res.json(reply)
 })
