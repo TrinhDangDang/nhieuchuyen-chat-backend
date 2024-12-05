@@ -18,7 +18,7 @@ const getMessages = async (req, res) => {
         });
 
         if (!conversation) {
-            return res.status(404).json({ message: "No conversation found with this user" });
+            return res.status(404).json({ message: "Start chatting" });
         }
         const chats = conversation.messages.reverse()
 

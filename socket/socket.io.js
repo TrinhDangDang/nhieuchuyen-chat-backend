@@ -14,7 +14,7 @@ const saveMessageEvent = new EventEmitter()
 
 const io = new Server(server, {
     cors: {
-        origin :"http://localhost:3000",
+        origin :"http://trinhdangdang.com",
         methods: ["GET", "POST"],
     }
 })
@@ -33,6 +33,20 @@ io.use((socket, next) => {
     
 })
 
+
+setInterval(() => {
+    io.sockets.sockets.forEach((socket) => {
+        const token = socket.handshake.auth.token;
+
+        jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err) => {
+            if (err) {
+                console.log(`Token expired or invalid for socket ${socket.id}. Disconnecting...`);
+                socket.emit("logout", { message: "Your session has expired. Please log in again." });
+                socket.disconnect(true); // Disconnect the socket
+            }
+        });
+    });
+}, 15 * 60 * 1000); // Every 15 minutes
 const onlineUsers = {};
 
 saveMessageEvent.on("saveMessage", async(data) => {
@@ -78,9 +92,9 @@ io.on("connection", (socket) => {
         onlineUsers[userId] = [];
     }
     onlineUsers[userId].push(socket.id);
-    console.log(onlineUsers)
 
     io.emit("onlineUsers", Object.keys(onlineUsers))
+    console.log("emiting OnlineUsers", onlineUsers)
 
     socket.on("message", (data) => {
         console.log("Message received from client:", data)
@@ -94,21 +108,34 @@ io.on("connection", (socket) => {
 
         saveMessageEvent.emit("saveMessage", {receiverId, message, tempId, senderId: socket.userId})
         
-        const recipientSocketId = onlineUsers[receiverId];
-        if (recipientSocketId) {
-            io.to(recipientSocketId).emit("newMessage", {
-                _id: tempId,
-                senderId: socket.userId,
-                message,
-            })
+        const recipientSocketIds = onlineUsers[receiverId];
+        if (recipientSocketIds && recipientSocketIds.length > 0) {
+            recipientSocketIds.forEach((socketId) => {
+                io.to(socketId).emit("newMessage", {
+                    _id: tempId,
+                    senderId: socket.userId,
+                    message,
+                });
+            });
         }
         socket.emit("messageReceived", `Server received:${data}`)
     })
 
 
-    socket.on('updateToken', (data)=> {
-        console.log("new access token", data)
-    })
+    // socket.on('updateToken', (data)=> {
+    //     const { token } = data;
+    //     console.log("updating token")
+    //     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    //         if (err) {
+    //             console.error("JWT Verification Error:", err);
+    //             callback({ success: false, message: "Invalid or expired token" });
+    //             socket.disconnect(true); // Disconnect if the token is invalid
+
+    //             return;
+    //         }
+    //         callback({ success: true, message: "Token updated successfully" });
+    //     });
+    // });
     socket.on("disconnect", () => {
         console.log(`A user disconnected: ${socket.id}`)
         onlineUsers[userId] = onlineUsers[userId].filter((id) => id !== socket.id);
