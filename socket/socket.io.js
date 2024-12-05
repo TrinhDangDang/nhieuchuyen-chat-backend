@@ -9,7 +9,7 @@ const Message = require ("../models/Message");
 const mongoose = require('mongoose')
 const EventEmitter = require("events")
 const saveMessageEvent = new EventEmitter()
-import allowedOrigins from '../config/allowedOrigins'
+const allowedOrigins = require('../config/allowedOrigins')
 
 
 
