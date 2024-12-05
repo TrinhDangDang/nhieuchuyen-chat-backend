@@ -9,12 +9,13 @@ const Message = require ("../models/Message");
 const mongoose = require('mongoose')
 const EventEmitter = require("events")
 const saveMessageEvent = new EventEmitter()
+import allowedOrigins from '../config/allowedOrigins'
 
 
 
 const io = new Server(server, {
     cors: {
-        origin :"http://trinhdangdang.com",
+        origin : allowedOrigins,
         methods: ["GET", "POST"],
     }
 })
